@@ -1,27 +1,25 @@
 <!DOCTYPE html>
 <html>
-<head><title>Gift Card Checker Test</title></head>
+<head><title>Darden Checker Test</title><style>body{font-family:Arial;background:#0f172a;color:#e2e8f0;padding:2rem;}</style></head>
 <body>
-  <h1>Тест чекера</h1>
-  <select id="test-brand"><option value="darden">Darden</option></select>
-  <input id="test-card" placeholder="16 цифр">
-  <input id="test-pin" placeholder="PIN" type="password">
-  <button onclick="testCheck()">Проверить</button>
-  <div id="test-result"></div>
+  <h1>Darden Balance Checker Test</h1>
+  <input id="test-card" placeholder="16 цифр номера карты" style="padding:1rem; margin:0.5rem; width:300px;">
+  <input id="test-pin" placeholder="4 цифры PIN" type="password" style="padding:1rem; margin:0.5rem; width:300px;">
+  <button onclick="testDardenCheck()">Проверить</button>
+  <div id="test-result" style="margin-top:1rem; padding:1rem; background:rgba(16,185,129,0.1);"></div>
   <script>
-    async function testCheck() {
-      const brand = document.getElementById('test-brand').value;
+    async function testDardenCheck() {
       const card = document.getElementById('test-card').value;
       const pin = document.getElementById('test-pin').value;
       const result = document.getElementById('test-result');
-      result.innerHTML = 'Проверяем...';
-      const res = await fetch('/api/check-balance', {
+      result.innerHTML = 'Проверяем Darden...';
+      const res = await fetch('/api/darden-check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brand, card, pin })
+        body: JSON.stringify({ card, pin })
       });
       const data = await res.json();
-      result.innerHTML = data.success ? `Баланс: $${data.balance}, Выплата: ${data.payout} USDT` : data.message;
+      result.innerHTML = data.success ? `Баланс: $${data.balance}<br>Выплата: ${data.payout} USDT<br><a href="https://t.me/XPgiftCOM?text=${encodeURIComponent(data.message)}" target="_blank">Продать</a>` : data.message;
     }
   </script>
 </body>
