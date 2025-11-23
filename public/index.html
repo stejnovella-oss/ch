@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>Gift Card Checker Test</title></head>
+<body>
+  <h1>Тест чекера</h1>
+  <select id="test-brand"><option value="darden">Darden</option></select>
+  <input id="test-card" placeholder="16 цифр">
+  <input id="test-pin" placeholder="PIN" type="password">
+  <button onclick="testCheck()">Проверить</button>
+  <div id="test-result"></div>
+  <script>
+    async function testCheck() {
+      const brand = document.getElementById('test-brand').value;
+      const card = document.getElementById('test-card').value;
+      const pin = document.getElementById('test-pin').value;
+      const result = document.getElementById('test-result');
+      result.innerHTML = 'Проверяем...';
+      const res = await fetch('/api/check-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand, card, pin })
+      });
+      const data = await res.json();
+      result.innerHTML = data.success ? `Баланс: $${data.balance}, Выплата: ${data.payout} USDT` : data.message;
+    }
+  </script>
+</body>
+</html>
