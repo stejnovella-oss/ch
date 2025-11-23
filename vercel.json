@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/check-balance.js": {
+    "api/darden-check.js": {
       "maxDuration": 30
     }
   }
