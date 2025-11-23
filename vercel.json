@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/check-balance.js": {
+      "maxDuration": 30
+    }
+  }
+}
