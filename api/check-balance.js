@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 
-const TWO_CAPTCHA_API_KEY = process.env.TWOCAPTCHA_KEY; // Из Vercel env
+const TWO_CAPTCHA_API_KEY = process.env.TWOCAPTCHA_KEY;  // Из Vercel env
 
 async function solveRecaptcha(siteKey, pageUrl) {
   const submit = await fetch(`http://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
@@ -22,51 +22,40 @@ async function solveRecaptcha(siteKey, pageUrl) {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { brand, card, pin } = req.body;
+  const { card, pin } = req.body;
 
   try {
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
 
-    let url;
-    switch (brand) {
-      case 'darden': url = 'https://www.darden.com/gift-cards/check-balance'; break;
-      case 'texasroadhouse': url = 'https://www.texasroadhouse.com/gift-cards/check-balance'; break;
-      case 'outback': url = 'https://www.outback.com/gift-cards/check-balance'; break;
-      case 'chilis': url = 'https://www.chilis.com/gift-card-balance'; break;
-      case 'panera': url = 'https://www.panerabread.com/en-us/gift-card-balance.html'; break;
-      case 'redlobster': url = 'https://www.redlobster.com/gift-cards/check-balance'; break;
-      case 'crackerbarrel': url = 'https://www.crackerbarrel.com/gift-cards/balance'; break;
-      default: throw new Error('Unknown brand');
-    }
+    // Открываем твой линк
+    await page.goto('https://merchant.wgiftcard.com/rbc/darden_resp_dmb', { waitUntil: 'networkidle2' });
 
-    await page.goto(url, { waitUntil: 'networkidle2' });
-
-    // Решаем reCAPTCHA v3
+    // Решаем reCAPTCHA v3 (если на странице)
     const siteKey = await page.evaluate(() => {
       const el = document.querySelector('div[data-sitekey]');
       return el ? el.dataset.sitekey : null;
     });
     if (siteKey) {
-      const token = await solveRecaptcha(siteKey, url);
+      const token = await solveRecaptcha(siteKey, 'https://merchant.wgiftcard.com/rbc/darden_resp_dmb');
       await page.evaluate((t) => {
         const input = document.querySelector('textarea[name="g-recaptcha-response"]');
         if (input) input.value = t;
       }, token);
     }
 
-    // Заполняем форму
-    await page.type('input[name="giftCardNumber"], input[placeholder*="Card Number"], input[id*="card"]', card);
-    if (pin) await page.type('input[name="pin"], input[placeholder*="PIN"], input[id*="pin"]', pin);
+    // Заполняем форму (cardno = номер, pin = PIN)
+    await page.type('input[name="cardno"], input[placeholder*="Card Number"]', card);
+    await page.type('input[name="pin"], input[placeholder*="PIN"]', pin);
 
-    // Кликаем кнопку
-    await page.click('button[type="submit"], input[type="submit"], button:contains("Check"), .btn-check');
+    // Кликаем "Check Balance" или submit
+    await page.click('button[type="submit"], input[type="submit"], button:contains("Check")');
     await page.waitForTimeout(5000);  // Ждём ответа
 
-    // Парсим баланс
+    // Парсим баланс из HTML (ищем "$XX.XX" или "balance: XX")
     const balanceText = await page.evaluate(() => {
       const text = document.body.innerText;
-      const match = text.match(/balance[:\s]*\$?([0-9,]+\.?[0-9]*)/i);
+      const match = text.match(/balance[:\s]*\$?([0-9,]+\.?[0-9]*)/i) || text.match(/\$([0-9,]+\.?[0-9]*)/);
       return match ? match[1] : null;
     });
 
@@ -74,8 +63,8 @@ module.exports = async (req, res) => {
 
     if (balanceText) {
       const balance = parseFloat(balanceText.replace(/,/g, ''));
-      const payout = (balance * 0.55).toFixed(2);
-      res.json({ success: true, balance, payout, message: `Баланс $${balance}, выплата ${payout} USDT` });
+      const payout = (balance * 0.55).toFixed(2);  // 55% для фуд
+      res.json({ success: true, balance, payout, message: `Баланс Darden: $${balance}, выплата ${payout} USDT` });
     } else {
       res.json({ success: false, message: 'Баланс не найден — проверь PIN или пришли в Telegram' });
     }
